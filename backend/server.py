@@ -218,6 +218,9 @@ class Helmet:
             self.sim_elapsed_min = 0.0          # fresh oxygen and battery
             self.sos = False
             self.last_alert_said.clear()
+            if self.report_task and not self.report_task.done():   # a report for the old EVA is no longer wanted
+                self.report_task.cancel()
+                await self.broadcast({"type": "report_status", "stage": "cancelled"})
             self.log.start()
             self.log.event(0, "start", "EVA started at the habitat")
             await self.say("Restarting from the habitat.")
@@ -336,15 +339,15 @@ class Helmet:
             await self.say("A mission report is already on its way.")
             return
         delay = self.earth.delay_s()
+        log = self.log.summary()          # snapshot: this is the log that leaves Mars now
         await self.say(f"Sending the EVA log to Earth. Report back in about {self.delay_words(2 * delay + 5)}.")
-        self.report_task = asyncio.create_task(self._report_flow(delay))
+        self.report_task = asyncio.create_task(self._report_flow(delay, log))
 
-    async def _report_flow(self, delay):
+    async def _report_flow(self, delay, log):
         try:
             await self.broadcast({"type": "report_status", "stage": "to_earth", "eta_s": round(delay)})
             await asyncio.sleep(delay)                                      # log crossing to Earth
             await self.broadcast({"type": "report_status", "stage": "writing"})
-            log = self.log.summary()
             text, by = await self.mission_control.report(self.http, log)
             self.latest_report = {"eva_id": log["eva_id"], "text": text, "by": by, "created": time.time()}
             LOG_DIR.mkdir(exist_ok=True)

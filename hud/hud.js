@@ -196,7 +196,7 @@
     }).join("").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
   }
   function setReportStatus(m) {
-    reportStage = m.stage === "failed" ? null : { ...m, until: Date.now() + (m.eta_s || 0) * 1000 };
+    reportStage = (m.stage === "failed" || m.stage === "cancelled") ? null : { ...m, until: Date.now() + (m.eta_s || 0) * 1000 };
     drawReportStatus();
   }
   function drawReportStatus() {
